@@ -3,14 +3,133 @@
 <head>
   <meta charset="utf-8">
   <title>Detect iOS WebView</title>
-
   <base href="/">
+
+  <style>
+      <!-- 
+        For `position: fixed` see:
+        https://developers.google.com/web/updates/2016/12/url-bar-resizing
+        https://bugs.webkit.org/show_bug.cgi?id=141832
+        https://github.com/bokand/URLBarSizing
+      -->
+      html {
+          height: 100vh;
+      }
+
+      body {
+          height: 100%;
+          position: fixed;
+      }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/UAParser.js/1.0.35/ua-parser.min.js"></script>
 
 </head>
 <body >
-    Detect iOS WebView
+
+<pre>
+  This page tries to detect iOS WebView (WKWebView, SFSafariViewController and UIWebView)
+</pre>
+
+<div>OS:      <span id="os-text"></span></div>
+<div>WebView: <span id="web-view-text"></span></div>
+
 
     <script>
+      function detectIosWebView()
+      {
+        // Method #1
+        // See: https://developer.apple.com/documentation/webkit/wkscriptmessagehandler
+        // window.webkit.messageHandlers is defined in WKWebView with WKScriptMessageHandler
+        // 1) if window.webkit.messageHandlers is present then it is 100% WKWebView
+        // 2) if window.webkit.messageHandlers is not present then it could be:
+        //    2.1) WKWebView without WKScriptMessageHandler
+        //    2.2) not a WKWebView
+        if(window?.webkit?.messageHandlers)
+        {
+            return true;
+        }
+
+        // Method #2
+        // This code relies on CSS styles
+        /* 
+            html {
+                height: 100vh;
+            }
+
+            body {
+                height: 100%;
+                position: fixed;
+            }
+        */
+
+        const webViewMode = window.document?.documentElement?.clientHeight === window.document?.documentElement?.scrollHeight;
+        return webViewMode
+      }
+
+
+      function isMobileSafariInDesktopMode()
+      {
+          // iOS 13 and iPadOS have a setting: Settings -> Safari -> Request Desktop Website -> All websites
+          // It reports Mobile Safari as Desktop Safari.
+
+          const uaParser = new UAParser(window.navigator.userAgent);
+          const browser = uaParser.getBrowser();
+
+          if ((browser.name !== 'Safari') || (Number(browser.major) < 13))
+          {
+              // Not a Safari 13+
+              return false;
+          }
+
+          let mobilePoints = 0;
+
+          // maxTouchPoints is 0 on desktop Safari
+          if (window.navigator.maxTouchPoints > 1)
+          {
+              mobilePoints += 1;
+          }
+
+          // 'ontouchstart' is not defined on desktop Safari
+          if ('ontouchstart' in window)
+          {
+              mobilePoints += 1;
+          }
+
+          // navigator.standalone is not defined on desktop Safari
+          if ((typeof (window.navigator).standalone) !== 'undefined')
+          {
+              mobilePoints += 1;
+          }
+
+          return mobilePoints >= 2;
+      }
+
+      function isiOS()
+      {
+          const uaParser = new UAParser(window.navigator.userAgent);
+          const browser = uaParser.getBrowser();
+          const os = uaParser.getOS();
+
+          return (os.name === 'iOS') ||
+                 (browser.name === 'Mobile Safari') ||
+                 isMobileSafariInDesktopMode();
+      }
+    </script>
+
+    <script>
+      let osEl = document.querySelector("#os-text");
+      let webViewEl = document.querySelector("#web-view-text");
+      
+
+      if (isiOS())
+      {
+        osEl.textContent = "iOS";
+        webViewEl.textContent = detectIosWebView() ? "WebView" : "not WebView (Mobile Safari)";
+      } else {
+        osEl.textContent = "This is not an iOS browser";
+        webViewEl.textContent = "n/a";
+      }
+
     </script>
 </body>
 </html>
